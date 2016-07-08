@@ -2,6 +2,59 @@ version: '2'
 
 services:
 
+### HAProxy Container #######################################
+
+    lb:
+#        image: dockercloud/haproxy
+        build:
+            context: ./lb
+            dockerfile: Dockerfile
+        links:
+            - web
+        ports:
+            - "80:80"
+            - "443:443"
+        environment:
+            - DOCKER_TLS_VERIFY
+            - DOCKER_HOST
+            - DOCKER_CERT_PATH
+        volumes:
+            - $DOCKER_CERT_PATH:$DOCKER_CERT_PATH
+            - ./logs/supervisor/:/var/log/supervisor
+        tty: true
+
+### WEB Container ###########################################
+
+    web:
+        build:
+            context: ./web
+            dockerfile: Dockerfile
+        volumes_from:
+            - application
+        volumes:
+            - ./logs/nginx/:/var/log/nginx
+            - ./logs/supervisor/:/var/log/supervisor
+        expose:
+            - "80"
+            - "443"
+        links:
+            - workspace
+
+### Nginx Server Container ##################################
+
+    nginx:
+        build: ./nginx
+        volumes_from:
+            - application
+        volumes:
+            - ./logs/nginx/:/var/log/nginx
+        ports:
+            # MUST COMMENT OUT WHEN WORKING WITH LB CONTAINER
+            - "80:80"
+            - "443:443"
+        links:
+            - php-fpm
+
 ### PHP-FPM Container #######################################
 
     php-fpm:
@@ -33,20 +86,6 @@ services:
             - /var/lib/memcached:/var/lib/memcached
             - /var/lib/neo4j:/var/lib/neo4j/data
             - /var/lib/redis:/data
-
-### Nginx Server Container ##################################
-
-    nginx:
-        build: ./nginx
-        volumes_from:
-            - application
-        volumes:
-            - ./logs/nginx/:/var/log/nginx
-        ports:
-            - "80:80"
-            - "443:443"
-        links:
-            - php-fpm
 
 ### MySQL Container #########################################
 
